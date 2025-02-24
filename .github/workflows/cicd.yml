@@ -1,39 +1,95 @@
-name: CI
+ame: CI/CD Pipeline for Monorepo
 
-on: 
+on:
   push:
     branches:
       - main
 
 jobs:
-  build:
+  # Frontend build and test
+  build-frontend:
     runs-on: self-hosted
-
+    defaults:
+      run:
+        working-directory: ./front-end
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Frontend)
-        run: |
-          cd front-end
-          npm install
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-      - name: Build frontend
-        run: |
-          cd front-end
-          npm run build
+      - name: Install dependencies
+        run: npm install
 
-      - name: Install dependencies (Backend)
-        run: |
-          cd Back-end
-          npm install
+      - name: Run tests (if any)
+        run: npm test
 
-      - name: Start Backend
-        run: |
-          cd Back-end
-          npm start
+      - name: Build React app
+        run: npm run build
 
-      - name: Start Frontend
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: ./front-end/build
+
+  # Backend build and test
+  build-backend:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: ./Back-end
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests (if any)
+        run: npm test
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-code
+          path: ./Back-end
+
+  # Deploy both frontend and backend
+  deploy:
+    runs-on: self-hosted
+    needs: [build-frontend, build-backend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: ./front-end/build
+
+      - name: Download backend code
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-code
+          path: ./Back-end
+
+      - name: Deploy frontend to Nginx
         run: |
-          cd frontend
-          npm start
+          sudo rm -rf /var/www/html/*
+          sudo cp -r ./frontend/build/* /var/www/html/
+          sudo systemctl restart nginx
+
+      - name: Restart backend service
+        run: |
+          pm2 stop all
+          pm2 start ./backend/index.js
