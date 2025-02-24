@@ -1,4 +1,4 @@
-ame: CI/CD Pipeline for Monorepo
+name: CI/CD Pipeline for Monorepo
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
     runs-on: self-hosted
     defaults:
       run:
-        working-directory: ./Back-end
+        working-directory: ./back-end
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-code
-          path: ./Back-end
+          path: ./back-end
 
   # Deploy both frontend and backend
   deploy:
@@ -81,15 +81,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-code
-          path: ./Back-end
+          path: ./back-end
 
       - name: Deploy frontend to Nginx
         run: |
           sudo rm -rf /var/www/html/*
-          sudo cp -r ./frontend/build/* /var/www/html/
+          sudo cp -r ./front-end/build/* /var/www/html/
           sudo systemctl restart nginx
 
       - name: Restart backend service
         run: |
-          pm2 stop all
-          pm2 start ./backend/index.js
+          pm2 stop all || true
+          pm2 start ./back-end/index.js
